@@ -1,74 +1,54 @@
-# %% 0: Import Libraries
+# %% 0: Imports & Setup
+
 import requests as re
 from bs4 import BeautifulSoup as bs
-
-# DHA_Url = "https://www.zameen.com/Rentals_Houses_Property/Islamabad_DHA_Defence-3188-1.html"
-#
-# html = re.get(DHA_Url)
-# soup = bs(html.text, "html.parser")
-#
-# # %% 2: Load Data
-#
-# areas = soup.select("h2._36dfb99f")[:20]
-# prices = soup.select("div._2923a568 > span.dc381b54")[:20]
-# for index, (area, price) in enumerate(zip(areas, prices), start=1):
-#     print(index, area.text, price.text)
-# # %% 3: Save Data
-#
-# import pandas as pd
-#
-# clean_areas = [a.text.strip() for a in areas]
-# clean_prices = [p.text.strip() for p in prices]
-#
-# df = pd.DataFrame({"area": clean_areas, "Price": clean_prices})
-# df.head()
-# # %% 4: Submitting in the File
-#
-# df.to_csv("data.csv", index=False, encoding="utf-8")
-# print("File created!")
-
-# # %% 5: Listing Cities
-#
-# soup.select("div.d7c48502 span._569dbe30")
-#
-# # %% 6: t1
-#
-# link = "https://www.zameen.com/all_locations/Islamabad-3-1-9.html"
-# html_I = re.get(link)
-# sop = bs(html_I.text, "html.parser")
-
-# %% 7: t2
-
-# areas = sop.select("div.layout-grid_layoutGrid__htd53 span")[:501]
-# links = sop.select("div.layout-grid_layoutGrid__htd53 a")[:501]
-# for index, (area, link) in enumerate(zip(areas, links), start=1):
-#     clean_areas = [a.text.strip() for a in areas]
-#     clean_links = [l.get("href", "").strip() for l in links]
-
-# df = pd.DataFrame({"areas": clean_areas, "links": clean_links})
-# df.to_csv("ISB_areas.csv", index=False, encoding="utf-8")
-# print("File Created!")
-
-# %% 8: House Card Details
-
 import pandas as pd
 import time
+import os
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 
-combined_rows = []
+headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
+
+OUT_FILE = "ISB_areas.csv"
+DONE_FILE = "done_areas.txt"
+lock = Lock()
+
+
+# %% 1: Helper - Fetch Page With Retries
+
+def get_page(session, link, retries=5):
+    for attempt in range(retries):
+        try:
+            return session.get(link, timeout=20)
+        except re.exceptions.RequestException as e:
+            wait = 2 * (2 ** attempt)
+            print(f"{type(e).__name__} on {link} | retry {attempt + 1}/{retries} in {wait}s")
+            time.sleep(wait)
+    return None
+
+
+# %% 2: Scrape One Area (All Pages) & Save To CSV
 
 def area_scrapper(name):
     rows = []
     page_no = 1
+    session = re.Session()
+    session.headers.update(headers)
+
     while True:
-        # print(f"Scarping Page No.{page_no}")
         link = f"https://www.zameen.com/Houses_Property/Islamabad_{name}-{page_no}.html"
-        html = re.get(link)
-        soup = bs(html. text, "html.parser")
+        html = get_page(session, link)
+
+        if html is None:
+            print(f"{name}: failed after retries, skipping (will retry on next run)")
+            return  # not marked as done, so the next run picks it up again
+
+        soup = bs(html.text, "html.parser")
 
         houses_card = soup.select("ul.e20beb46 li.a37d52f0")
 
         if not houses_card:
-            print("No more houses found. Finished scraping!")
             break
 
         for hc in houses_card:
@@ -95,24 +75,31 @@ def area_scrapper(name):
                 "price": prices_text,
             })
 
-        combined_rows.extend(rows)
-
         next_button = soup.select_one('[title="Next"]')
         if not next_button:
-            print("Reached the final Page. Stopping...")
             break
 
         page_no += 1
-        time.sleep(1)
+        time.sleep(0.5)
 
-    print(f"{name} File Created!")
+    # save this area right away
+    with lock:
+        if rows:
+            pd.DataFrame(rows).to_csv(
+                OUT_FILE, mode="a", index=False, encoding="utf-8",
+                header=not os.path.exists(OUT_FILE),
+            )
+        with open(DONE_FILE, "a", encoding="utf-8") as f:
+            f.write(name + "\n")
+    print(f"{name} done ({len(rows)} houses)")
 
-# %% 9: Getting All Area Data
+
+# %% 3: Get All Islamabad Area Names From Zameen
 
 area_links = []
 
 link_ISB = "https://www.zameen.com/all_locations/Islamabad-3-1-9.html"
-html_ISB = re.get(link_ISB)
+html_ISB = re.get(link_ISB, headers=headers, timeout=20)
 soup_ISB = bs(html_ISB.text, "html.parser")
 links = soup_ISB.select("div.layout-grid_layoutGrid__htd53 a")[:501]
 for link in links:
@@ -121,8 +108,21 @@ for link in links:
 
 ISB_areas = [area_link.split("/Islamabad_")[-1].split("-1.html")[0] for area_link in area_links]
 
-for areas_name in ISB_areas:
-    area_scrapper(name=areas_name)
 
-df = pd.DataFrame(combined_rows)
-df.to_csv("ISB_areas.csv", index=False, encoding="utf-8")
+# %% 4: Skip Already-Finished Areas (Resume Support)
+
+done = set()
+if os.path.exists(DONE_FILE):
+    with open(DONE_FILE, encoding="utf-8") as f:
+        done = {line.strip() for line in f}
+
+todo = [a for a in ISB_areas if a not in done]
+print(f"{len(done)} already done, {len(todo)} to go")
+
+
+# %% 5: Run The Scraper (5 Areas In Parallel)
+
+with ThreadPoolExecutor(max_workers=5) as executor:
+    list(executor.map(area_scrapper, todo))
+
+print("All finished!")
