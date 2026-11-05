@@ -1,7 +1,6 @@
 # %% 1: Getting Data
-from mailbox import linesep
-from operator import contains
-from turtle import color
+from operator import index
+from tokenize import COLONEQUAL
 
 import pandas as pd
 
@@ -11,13 +10,16 @@ df.head()
 print(df.shape)
 print(df.columns)
 # %% 3: Checking Null Values
-df.isnull().sum()
+print("Null Values:",df.isnull().sum())
+print("-"*30)
+print("Duplicates: ",df.duplicated().sum())
 # %% 4: Fixing Null Values with (Mean)
-df["beds"] = df["beds"].fillna(df["beds"].mean())
-df["baths"] = df["baths"].fillna(df["baths"].mean())
+df["beds"] = df["beds"].fillna(df["beds"].median())
+df["baths"] = df["baths"].fillna(df["baths"].median())
 
 df.isnull().sum()
-# %% 5: new
+# %% 5: Duplicates Dropped
+df = df.drop_duplicates()
 df.dtypes
 df.head()
 # %% 6: Unique
@@ -38,19 +40,51 @@ def price_cal(text):
 
 df["Price (Lakh)"] = df["price"].apply(price_cal)
 
-# %% Data Updated - (After Price in one cal)
+# %% 9: Data Updated - (After Price in one cal)
 
 df.head()
-# %% 9: Area Fixing
+# %% 10: Area Fixing
 
 area_values = {"marla": 1, "kanal":20}
 
 def area_cal(text):
-    area_matches = re.findall(r"(\d\.?\d*)\s*(marla|kanal)", str(text).lower())
+    area_matches = re.findall(r"(\d+\.?\d*)\s*(marla|kanal)", str(text).lower())
     return sum(float(count) * area_values[area] for count, area in area_matches)
 
 df["Area (Marla)"] = df["area"].apply(area_cal)
 
-# %% Data Updated - (After Area in one cal)
+# %% 11: Data Updated - (After Area in one cal)
 
 df.tail()
+# %% 12: Checking 0 Values
+
+print((df["Area (Marla)"] == 0). sum())
+print((df["Price (Lakh)"] == 0). sum())
+
+# %% 13: Data Visualization
+df[df["Area (Marla)"] == 0][["area", "price", "location"]]
+bad = [16881, 16582, 13622, 4374, 4780]
+df = df[df["Area (Marla)"] > 0].drop(index=bad)
+# %%
+print(df[["Price (Lakh)", "Area (Marla)", "beds", "baths"]].describe())
+# %%
+
+df["ppm"] = df["Price (Lakh)"] / df["Area (Marla)"]
+
+print(df["ppm"].describe())
+
+cols = ["location", "area", "beds", "price", "ppm"]
+print("-" * 50)
+print("Head")
+print(df.sort_values("ppm").head(10)[cols])
+print("-" * 50)
+print("Tail")
+print(df.sort_values("ppm").tail(10)[cols])
+print("-" * 50)
+print("Quantile")
+print(df["ppm"].quantile([0.01, 0.05, 0.95,0.99]))
+# %%
+
+df = df.drop(columns="ppm").reset_index(drop=True)
+df.to_csv("./Data/processed/ISB_clean.csv", index=False, encoding="utf-8")
+print(df.shape)
