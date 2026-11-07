@@ -1,5 +1,7 @@
 # %% 1: Getting Data
 from operator import index
+from pydoc import plainpager
+from statistics import kde
 from tokenize import COLONEQUAL
 
 import pandas as pd
@@ -61,7 +63,7 @@ df.tail()
 print((df["Area (Marla)"] == 0). sum())
 print((df["Price (Lakh)"] == 0). sum())
 
-# %% 13: Data Visualization
+# %% 13:
 df[df["Area (Marla)"] == 0][["area", "price", "location"]]
 bad = [16881, 16582, 13622, 4374, 4780]
 df = df[df["Area (Marla)"] > 0].drop(index=bad)
@@ -88,3 +90,43 @@ print(df["ppm"].quantile([0.01, 0.05, 0.95,0.99]))
 df = df.drop(columns="ppm").reset_index(drop=True)
 df.to_csv("./Data/processed/ISB_clean.csv", index=False, encoding="utf-8")
 print(df.shape)
+
+# %% 14: Histogram Plot
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.figure(figsize=(7,4))
+sns.histplot(data=df, x="Price (Lakh)", kde=True, bins=50)
+plt.title("Price (Lakh) Distribution")
+plt.show()
+
+# %% 14: Scatter Plot
+
+plt.figure(figsize=(7,4))
+sns.scatterplot(data=df, x="Area (Marla)", y="Price (Lakh)", palette='deep', s=100)
+plt.title("Area vs Price")
+plt.show()
+# %% 14: Box Plot
+
+plt.figure(figsize=(7,4))
+sns.boxenplot(data=df, x="beds", y="baths", palette='Set2')
+plt.title("Beds vs Baths")
+plt.show()
+# %% 15: Bar Plot
+
+plt.figure(figsize=(12,6))
+sns.barplot(data=df, x="Area (Marla)", y="Price (Lakh)", errorbar=None, color="teal")
+plt.title("Bar Plot")
+plt.show()
+# %% 16: Heatmap
+
+plt.figure(figsize=(7,4))
+corr_matrix = df[['Price (Lakh)','Area (Marla)','beds','baths']].corr()
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', vmin=-1, vmax=1, linewidths=0.5)
+plt.title("Numerical Feature Correlations")
+
+# %% 17: New Histogram using Numpy
+import numpy as np
+new = np.log1p(df["Price (Lakh)"])
+plt.figure(figsize=(7,4))
+sns.histplot(new)
