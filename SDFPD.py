@@ -1,8 +1,7 @@
 # %% 1: Getting Data
-from operator import index
-from pydoc import plainpager
-from statistics import kde
-from tokenize import COLONEQUAL
+from enum import unique
+
+from requests.compat import numeric_types
 
 import pandas as pd
 
@@ -103,13 +102,13 @@ plt.show()
 # %% 14: Scatter Plot
 
 plt.figure(figsize=(7,4))
-sns.scatterplot(data=df, x="Area (Marla)", y="Price (Lakh)", palette='deep', s=100)
+sns.scatterplot(data=df, x="Area (Marla)", y="Price (Lakh)", s=15, alpha=.3)
 plt.title("Area vs Price")
 plt.show()
 # %% 14: Box Plot
 
 plt.figure(figsize=(7,4))
-sns.boxenplot(data=df, x="beds", y="baths", palette='Set2')
+sns.boxenplot(data=df, x="beds", y="Price (Lakh)", palette='Set2')
 plt.title("Beds vs Baths")
 plt.show()
 # %% 15: Bar Plot
@@ -130,3 +129,32 @@ import numpy as np
 new = np.log1p(df["Price (Lakh)"])
 plt.figure(figsize=(7,4))
 sns.histplot(new)
+plt.xlabel("Log")
+# %%
+df['ppm'] = df['Price (Lakh)'] / df['Area (Marla)']
+df.head()
+# %%
+cleaned_df = df.groupby('location', as_index=False).agg(
+    Median_Price = ('ppm','median'),
+    Max_Price = ('ppm','max'),
+    Mean_Price = ('ppm','mean'),
+    Min_Price = ('ppm','min'),
+    loc_count = ('location','count')
+)
+
+# %%
+cleaned_df = cleaned_df[cleaned_df['loc_count'] >= 50]
+cleaned_df = cleaned_df.sort_values(by='Median_Price', ascending=False)
+print(cleaned_df.shape)
+cleaned_df.head(15)
+
+# %%
+plt.figure(figsize=(12,10))
+sns.barplot(data=cleaned_df, x='Median_Price', y='location')
+plt.title('BarPlot')
+plt.show()
+# %%
+plt.figure(figsize=(8,6))
+sns.barplot(data=df, y='Price (Lakh)', x='beds')
+plt.title('Price x Beds')
+plt.show()
