@@ -2,7 +2,7 @@
 
 > **"Sahi Daam"** (Urdu/Hindi for *the right price*): a machine learning project that learns what houses in Islamabad should cost, so a buyer can tell if a listing is **fairly priced, overpriced or a good deal**.
 
-**Status:** Phase 1 (data collection) ✅ · Phase 2 (data cleaning) ✅ · Phase 3 (EDA and modelling) ⏳ next
+**Status:** Phase 1 Data Collection ✅ · Phase 2 Data Cleaning ✅ · Phase 3 EDA ✅ · Phase 4 Feature Engineering ⏳ next
 
 ---
 
@@ -16,12 +16,14 @@
 6. [Phase 0: Learning Web Scraping](#6-phase-0-learning-web-scraping)
 7. [Phase 1: Data Collection](#7-phase-1-data-collection-web-scraping)
 8. [Phase 2: Data Cleaning](#8-phase-2-data-cleaning)
-9. [Final Dataset](#9-final-dataset)
-10. [Mistakes I Made and Fixed](#10-mistakes-i-made-and-fixed)
-11. [Limitations](#11-limitations)
-12. [Next Steps and Roadmap](#12-next-steps-and-roadmap)
-13. [How to Run](#13-how-to-run)
-14. [Ethics and Responsible Scraping](#14-ethics-and-responsible-scraping)
+9. [Final Cleaned Dataset](#9-final-cleaned-dataset)
+10. [Phase 3: Exploratory Data Analysis (EDA)](#10-phase-3-exploratory-data-analysis-eda)
+11. [EDA Findings in One Place](#11-eda-findings-in-one-place)
+12. [Mistakes I Made and Fixed](#12-mistakes-i-made-and-fixed)
+13. [Limitations](#13-limitations)
+14. [Next Steps and Roadmap](#14-next-steps-and-roadmap)
+15. [How to Run](#15-how-to-run)
+16. [Ethics and Responsible Scraping](#16-ethics-and-responsible-scraping)
 
 ---
 
@@ -33,8 +35,9 @@ Property prices in Pakistan are hard to judge. The same 1 Kanal house can be lis
 
 1. Collect real listing data for houses for sale in **Islamabad** from zameen.com.
 2. Clean it into a reliable dataset.
-3. Train a model that predicts the **fair sale price** from a house's location, area (size), bedrooms and bathrooms.
-4. Compare any listing's asking price with the model's predicted price and flag it as **overpriced / fair / underpriced**.
+3. Explore it to understand what drives price.
+4. Train a model that predicts the **fair sale price** from a house's location, area (size), bedrooms and bathrooms.
+5. Compare any listing's asking price with the model's predicted price and flag it as **overpriced / fair / underpriced**.
 
 **Scope decisions made so far:**
 
@@ -55,6 +58,7 @@ Property prices in Pakistan are hard to judge. The same 1 Kanal house can be lis
 | 2 | Built a paginated scraper for listing cards | **~17,000** raw listings |
 | 3 | Cleaned the data: nulls, units, duplicates, outliers | **~8,400** clean listings |
 | 4 | Saved the processed dataset | `Data/processed/ISB_clean.csv` |
+| 5 | Exploratory Data Analysis (histograms, scatter, heatmap, bar plots) | Findings in [Section 11](#11-eda-findings-in-one-place) |
 
 ---
 
@@ -65,7 +69,9 @@ Property prices in Pakistan are hard to judge. The same 1 Kanal house can be lis
 | Python 3.12 | Main language |
 | `requests` | Downloading web pages |
 | `BeautifulSoup4` (`bs4`) | Reading the HTML and picking out data using CSS selectors |
-| `pandas` | Tables (DataFrames), cleaning, saving CSV |
+| `pandas` | Tables (DataFrames), cleaning, grouping, saving CSV |
+| `numpy` | Log transform of price |
+| `matplotlib` + `seaborn` | Visualisation (EDA) |
 | `re` (regex) | Pulling numbers and units out of text like `"1.5 Crore"` |
 | Zed editor | Coding (with `# %%` cell markers, which work like notebook cells) |
 | Git / GitHub | Version control |
@@ -90,7 +96,7 @@ sahi-daam-fair-price-detector/
 │
 ├── Scrapping Learning/       # Practice files while learning scraping
 │
-├── SDFPD.py                  # Data cleaning script (cell-based, # %%)
+├── SDFPD.py                  # Cleaning + EDA script (cell-based, # %%)
 └── README.md
 ```
 
@@ -132,7 +138,7 @@ What that practice covered:
 3. `soup.select("css selector")` finds all elements that match, for example every price.
 4. Looping over the results and saving to CSV with pandas.
 
-That first scrape only got 20 listings (title and price). It taught the basic skill, but also showed its limits: scraping `prices` and `areas` as separate lists is fragile (see [Section 10](#10-mistakes-i-made-and-fixed)).
+That first scrape only got 20 listings (title and price). It taught the basic skill, but also showed its limits: scraping `prices` and `areas` as separate lists is fragile (see [Section 12](#12-mistakes-i-made-and-fixed)).
 
 ---
 
@@ -312,7 +318,7 @@ df["beds"]  = df["beds"].fillna(df["beds"].mean())
 df["baths"] = df["baths"].fillna(df["baths"].mean())
 ```
 
-> **Known weakness:** mean-filling creates values like `5.136261` beds, which is not realistic. Better options: the **median/mode** (a whole number), or `0` for plots. Also, to avoid *data leakage*, the fill value should be calculated from the **training set only** after a train/test split. Both are on the to-do list ([Section 12](#12-next-steps-and-roadmap)).
+> **Known weakness:** mean-filling creates values like `5.136261` beds, which is not realistic. Better options: the **median/mode** (a whole number), or `0` for plots. Also, to avoid *data leakage*, the fill value should be calculated from the **training set only** after a train/test split. Both are on the to-do list ([Section 14](#14-next-steps-and-roadmap)).
 
 ### Step 5 to 7: Look at what the text really contains
 
@@ -381,7 +387,7 @@ df["Area (Marla)"] = df["area"].apply(area_cal)
 | `2.6 Kanal` | 52 |
 | `13.6 Marla` | 13.6 |
 
-> 🐞 **Bug found here:** the first version used `\d` (one digit) instead of `\d+` (one or more). That turned `13.6 Marla` into `3.6` and `14 Marla` into `4`. Fixed with `\d+`. See [Section 10](#10-mistakes-i-made-and-fixed).
+> 🐞 **Bug found here:** the first version used `\d` (one digit) instead of `\d+` (one or more). That turned `13.6 Marla` into `3.6` and `14 Marla` into `4`. Fixed with `\d+`. See [Section 12](#12-mistakes-i-made-and-fixed).
 
 ### Step 10: Check zero values
 
@@ -444,17 +450,16 @@ df.to_csv("./Data/processed/ISB_clean.csv", index=False, encoding="utf-8")
 print(df.shape)
 ```
 
-> ⚠️ **`ppm` is removed on purpose.** It is calculated from the price, which is the thing the model must predict. Keeping it as a feature would leak the answer to the model (**data leakage**) and give fake, over-optimistic accuracy.
+> ⚠️ **`ppm` is removed on purpose.** It is calculated from the price, which is the thing the model must predict. Keeping it as a feature would leak the answer to the model (**data leakage**) and give fake, over-optimistic accuracy. (It is recreated temporarily during EDA, but never used as a model feature.)
 
 ---
 
-## 9. Final Dataset
+## 9. Final Cleaned Dataset
 
 **File:** `Data/processed/ISB_clean.csv`
 
 | Column | Type | Description |
 |---|---|---|
-| `area_name` | text | The area page the listing was scraped from (if kept) |
 | `location` | text | Location text on the card, e.g. `DHA Defence Phase 2, DHA Defence` |
 | `area` | text | Original area text, e.g. `1 Kanal` |
 | `beds` | number | Bedrooms |
@@ -463,11 +468,186 @@ print(df.shape)
 | `Price (Lakh)` | number | **Target.** Price in Lakh PKR |
 | `Area (Marla)` | number | Plot size in Marla |
 
-**Quick facts (after cleaning):** about 8,400 listings · median ≈ 550 Lakh · beds 1 to 11 · baths 1 to 10 · price is right-skewed.
+**Quick facts (after cleaning):** about 8,400 listings · median price ≈ 550 Lakh · median ≈ 57.7 Lakh per Marla · beds 1 to 11 · baths 1 to 10 · price is right-skewed.
 
 ---
 
-## 10. Mistakes I Made and Fixed
+## 10. Phase 3: Exploratory Data Analysis (EDA)
+
+**What is EDA?** Before building a model, I ask the data questions and answer them with charts. Each plot below answers one question. This phase uses `matplotlib` and `seaborn`, which I learned by building the plots myself and searching the docs when stuck.
+
+```python
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+```
+
+### 10.1 How is the price distributed? (histogram)
+
+```python
+plt.figure(figsize=(7, 4))
+sns.histplot(data=df, x="Price (Lakh)", kde=True, bins=50)
+plt.title("Price (Lakh) Distribution")
+plt.show()
+```
+
+| Code | Meaning |
+|---|---|
+| `figsize=(7, 4)` | Size of the chart in inches (width, height) |
+| `histplot` | Counts how many houses fall in each price range (bar = range) |
+| `bins=50` | Splits the price range into 50 bars |
+| `kde=True` | Adds a smooth line over the bars |
+
+**What I saw:** most houses sit at the low end (the tallest bar is on the far left), while a few very expensive houses stretch the tail out to 35,000 Lakh. This is a **right-skewed** distribution. It is why the mean (≈1098 Lakh) is far above the median (≈550 Lakh).
+
+### 10.2 Can the skew be fixed? (log transform)
+
+```python
+log_price = np.log1p(df["Price (Lakh)"])
+plt.figure(figsize=(7, 4))
+sns.histplot(log_price)
+plt.show()
+```
+
+`np.log1p(x)` is `log(1 + x)`. It squeezes large values together so that a 350 Crore house does not dominate.
+
+**What I saw:** the skew almost disappears and the shape becomes a bell. That is the shape most models learn best from. Two bumps are visible (around 6 and 7 on the log scale), which probably means **two separate markets** (smaller plots vs 1 Kanal+ houses).
+
+> Note: the x-axis is now `log(price)`, not Lakh (6 ≈ 400 Lakh, 7 ≈ 1,100 Lakh, 8 ≈ 3,000 Lakh).
+> **Decision:** the model will be trained on `log1p(Price (Lakh))` and predictions converted back with `np.expm1`.
+
+### 10.3 Does a bigger plot cost more? (scatter plot)
+
+```python
+plt.figure(figsize=(7, 4))
+sns.scatterplot(data=df, x="Area (Marla)", y="Price (Lakh)", s=15, alpha=0.3)
+plt.title("Area vs Price")
+plt.show()
+```
+
+(`s` = dot size, `alpha` = transparency, so crowded areas become visible.)
+
+**What I saw:** price rises with area, but not as a straight line. The dots form a **fan shape**: for small plots the price range is narrow, for big plots it is huge (80 Marla houses range from about 1,500 to 35,000 Lakh). **Area alone cannot decide the price. Location matters a lot too.**
+Three suspicious points (about 400, 280 and 140 Marla) are possible farmhouses or area typos, to be reviewed later.
+
+### 10.4 Do beds and baths move together? (boxen plot)
+
+```python
+plt.figure(figsize=(7, 4))
+sns.boxenplot(data=df, x="beds", y="baths")
+plt.title("Beds vs Baths")
+plt.show()
+```
+
+**What I saw:** as the number of beds goes up, baths go up too. The two columns carry similar information.
+
+### 10.5 A plot that did not work (bar plot of Area vs Price)
+
+I drew a bar for every unique area value. With hundreds of bars the x-axis labels overlapped and nothing could be read. **Lesson:** bar plots are for *categories* (like locations), not for continuous numbers. A scatter plot is the right tool for two numbers. This plot was dropped.
+
+### 10.6 Which columns are related? (correlation heatmap)
+
+```python
+plt.figure(figsize=(7, 4))
+corr = df[["Price (Lakh)", "Area (Marla)", "beds", "baths"]].corr()
+sns.heatmap(corr, annot=True, cmap="coolwarm", vmin=-1, vmax=1, linewidths=0.5)
+plt.title("Numerical Feature Correlations")
+plt.show()
+```
+
+How to read it: a number near **1** means "moves strongly together", near **0** means "no linear relation".
+
+| Pair | Correlation | Meaning |
+|---|---|---|
+| Price ↔ Area | **0.76** | Strong. Area is the most important numeric feature. |
+| Price ↔ Beds | 0.34 | Weak/moderate |
+| Price ↔ Baths | 0.22 | Weak |
+| Area ↔ Beds | 0.40 | Bigger houses have more beds |
+| Area ↔ Baths | 0.28 | Slight |
+| Beds ↔ Baths | **0.68** | Strongly related to each other |
+
+### 10.7 Which locations are the most expensive? (groupby + bar plot)
+
+First a temporary `ppm` (price per Marla) column is created (used for **exploration only**, never as a model feature):
+
+```python
+df["ppm"] = df["Price (Lakh)"] / df["Area (Marla)"]
+
+loc_df = df.groupby("location", as_index=False).agg(
+    Median_Price=("ppm", "median"),
+    Max_Price=("ppm", "max"),
+    Mean_Price=("ppm", "mean"),
+    Min_Price=("ppm", "min"),
+    loc_count=("location", "count"),
+)
+
+loc_df = loc_df[loc_df["loc_count"] >= 50]
+loc_df = loc_df.sort_values(by="Median_Price", ascending=False)
+```
+
+| Code | Meaning |
+|---|---|
+| `groupby("location")` | Puts all listings of the same location together |
+| `.agg(...)` | Calculates several statistics in one go (median, max, mean, min, count) |
+| `loc_count >= 50` | Keeps only locations with at least 50 listings, because the average of 3 listings is not trustworthy. 489 locations → **42** |
+| `sort_values(..., ascending=False)` | Most expensive first |
+
+```python
+plt.figure(figsize=(12, 10))
+sns.barplot(data=loc_df, x="Median_Price", y="location")
+plt.title("Median Price per Marla by Location")
+plt.show()
+```
+
+(`x` and `y` are swapped so that long location names are written horizontally and stay readable.)
+
+**Result (median price per Marla):**
+
+| Rank | Location | Median (Lakh / Marla) |
+|---|---|---|
+| 1 | F-6 | ~150 |
+| 2 | F-7 | ~143 |
+| 3 | D-12 (D-12/1) | ~118 to 120 |
+| 4 | F-8 | ~115 |
+| 5 | I-8/3 | ~106 |
+| … | … | … |
+| 16 | DHA Defence Phase 5 | ~64 |
+| 17 | DHA Defence Phase 2 | ~62 |
+| last | Bani Gala | ~34 |
+
+### 10.8 Does the number of bedrooms change price? (bar plot)
+
+```python
+plt.figure(figsize=(8, 6))
+sns.barplot(data=df, y="Price (Lakh)", x="beds")
+plt.title("Price x Beds")
+plt.show()
+```
+
+Each bar is the **average** price for that number of beds, and the black line shows how uncertain that average is (a long line = few listings or very mixed prices).
+
+**What I saw:** average price rises from about 180 Lakh (2 beds) to about 3,400 Lakh (11 beds). The rise is steep rather than a straight line, which is why the correlation was only 0.34. The 1-bed bar has a very long line, so those few listings are odd (probably plots or commercial entries with beds filled wrongly). The 8 to 11 bed bars have long lines too, because they have only a handful of listings.
+
+---
+
+## 11. EDA Findings in One Place
+
+1. **Price is right-skewed** (mean ≈ 1098 vs median ≈ 550 Lakh, max 35,000 Lakh). A **log transform** makes it bell-shaped, so the model will be trained on log price.
+2. **Area is the strongest numeric feature** (correlation 0.76 with price), but the relationship is a fan, not a line. Area alone is not enough.
+3. **Beds and baths** are strongly related to each other (0.68) and only weakly to price (0.34 and 0.22). Price rises *steeply* with beds, but part of that effect is simply "more beds = bigger house".
+4. **Location has a huge effect on price.** The most expensive location is more than 4 times as expensive per Marla as the cheapest.
+5. **There are two different markets in Islamabad:**
+   - **Developed sectors** (F, D, I, G, E series): median about **77 to 150** Lakh per Marla. All of the top 15 are sectors.
+   - **Housing societies** (DHA, Bahria Enclave, B-17 societies, Top City, Jinnah Gardens): median about **34 to 64** Lakh per Marla.
+6. **Bigger plots have a lower rate per Marla** (for example Bani Gala has large plots and the lowest rate), so price per Marla reflects size as well as location.
+7. **Location names are messy.** The same sector appears several times (`D-12`, `D-12/1`, `G-9`, `G-9/4`...). These need to be merged.
+8. **Rare values are unreliable**: houses with 1 bed or 8 to 11 beds have very few listings.
+
+**Caveats:** all prices are *asking* prices. The location chart only covers the 42 locations with 50+ listings. Correlation does not prove cause (for example, sectors are expensive partly because they are older, central and well developed).
+
+---
+
+## 12. Mistakes I Made and Fixed
 
 These are written here on purpose, because they were the most valuable part of learning.
 
@@ -483,10 +663,14 @@ These are written here on purpose, because they were the most valuable part of l
 | 8 | Area regex used `\d` instead of `\d+` | `13.6 Marla` → `3.6` | Use `\d+\.?\d*` |
 | 9 | Global outlier threshold idea | Would have removed real F-6 / F-7 houses | Judge outliers using location |
 | 10 | Keeping `ppm` as a column | Would leak the target into the model | Drop it before saving |
+| 11 | `groupby` on the wrong column (`Area (Marla)` instead of `ppm`) | Got the median *size* of each location instead of the median *price per Marla* | Aggregate the right column |
+| 12 | Sorted the location table by `loc_count` before plotting | Bars were not in price order, so no ranking was visible | Sort by `Median_Price` |
+| 13 | Bar plot of two numeric columns (`Area` vs `Price`) | Unreadable x-axis | Use a scatter plot for two numeric columns |
+| 14 | Passed `palette` without `hue` | Seaborn warnings | Remove `palette` or assign `hue` |
 
 ---
 
-## 11. Limitations
+## 13. Limitations
 
 Being honest about what this data cannot do:
 
@@ -494,26 +678,28 @@ Being honest about what this data cannot do:
 - **One-time snapshot.** Prices change; the data reflects the day it was scraped (add the date here).
 - **No listing ID/URL saved**, so exact duplicates cannot be told apart from similar houses.
 - **No exact location** (latitude/longitude), construction year, floors, condition or furnishing. Many things that move a price are missing.
-- **~500 locations** is a lot of categories for a few thousand rows; many areas have very few listings.
-- **Possible junk entries** still remain (typos, token/installment prices, commercial properties listed as houses).
+- **~490 distinct locations** is a lot of categories for a few thousand rows; many have very few listings, and location names are inconsistent.
+- **Possible junk entries** still remain (typos, token/installment prices, commercial properties listed as houses, odd 1-bed listings).
 - **Scrapers break.** Zameen can change its HTML at any time.
 
 ---
 
-## 12. Next Steps and Roadmap
+## 14. Next Steps and Roadmap
 
-### Phase 3: Exploratory Data Analysis (next)
-- [ ] Distribution plots of price, area, beds, baths
-- [ ] Price vs area, price vs beds scatter plots
-- [ ] Average price per Marla by sector/society (F, G, DHA, Bahria, etc.)
-- [ ] Correlation heatmap
-- [ ] Check the `area_name` vs `location` columns for useful grouping
+### Phase 3: Exploratory Data Analysis ✅
+- [x] Price distribution and log transform
+- [x] Area vs price, beds vs baths, beds vs price
+- [x] Correlation heatmap
+- [x] Median price per Marla by location
 
-### Phase 4: Feature Engineering
-- [ ] Group the ~500 areas into a smaller number of categories (sector family, society, tier)
-- [ ] Encode locations (one-hot for groups, target encoding if needed)
-- [ ] Handle remaining missing beds/baths properly (median/mode, or `0` for plots)
-- [ ] Use the **log** of price (`np.log1p`) because of the skew
+### Phase 4: Feature Engineering ⏳ (next)
+- [ ] **Clean location names**: merge `D-12/1`, `D-12/3`, `D-12, Islamabad` into one `D-12`, `G-9/4` into `G-9`, etc.
+- [ ] Create a **`location_type` feature**: sector (F, G, D, I, E...) vs housing society (DHA, Bahria, B-17...), since EDA showed they are two different markets
+- [ ] Group rare locations into an `Other` category
+- [ ] Encode locations (one-hot, or target encoding done carefully)
+- [ ] Handle missing beds/baths properly (median/mode, or `0` for plots)
+- [ ] Review the odd 1-bed listings and the extreme areas (140, 280, 400 Marla)
+- [ ] Apply the log transform to price
 
 ### Phase 5: Modelling
 - [ ] Train/test split **before** any imputation or encoding (to avoid leakage)
@@ -540,13 +726,13 @@ Being honest about what this data cannot do:
 
 ---
 
-## 13. How to Run
+## 15. How to Run
 
 **1. Clone and install**
 ```bash
 git clone https://github.com/Malik-Zain-555/sahi-daam-fair-price-detector.git
 cd sahi-daam-fair-price-detector
-pip install requests beautifulsoup4 pandas
+pip install requests beautifulsoup4 pandas numpy matplotlib seaborn
 ```
 
 **2. Scrape** (slow on purpose, there are 500+ areas; test on 3 areas first)
@@ -554,14 +740,14 @@ pip install requests beautifulsoup4 pandas
 python Data/raw/main.py
 ```
 
-**3. Clean**
-Run `SDFPD.py` (cell by cell in Zed/VS Code, or as a normal script). The output is `Data/processed/ISB_clean.csv`.
+**3. Clean + explore**
+Run `SDFPD.py` (cell by cell in Zed/VS Code, or as a normal script). The cleaned data is saved to `Data/processed/ISB_clean.csv`, and the EDA plots appear while the cells run.
 
 > 💡 When testing, loop over `areas_df.head(3)` instead of all 501 areas, to avoid sending thousands of requests by mistake.
 
 ---
 
-## 14. Ethics and Responsible Scraping
+## 16. Ethics and Responsible Scraping
 
 - I checked `robots.txt`. The `/Houses_Property/` listing pages are **not** in its disallow list, but the file does disallow many other paths, and the website's **Terms of Service** may apply separately. This project is for **learning and portfolio use only**.
 - A delay (`time.sleep`) is added between requests, and the scraper stops if the status code is not 200.
