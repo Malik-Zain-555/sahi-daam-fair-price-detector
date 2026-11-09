@@ -1,8 +1,4 @@
 # %% 1: Getting Data
-from enum import unique
-
-from requests.compat import numeric_types
-
 import pandas as pd
 
 df = pd.read_csv("./Data/raw/ISB_areas.csv")
@@ -158,3 +154,46 @@ plt.figure(figsize=(8,6))
 sns.barplot(data=df, y='Price (Lakh)', x='beds')
 plt.title('Price x Beds')
 plt.show()
+# %% Nov - 9
+df.head()
+# %%
+df['loc_family'] = df['location'].str.extract(r'([A-Z]-\d+)', expand=False)
+df['loc_family'] = df['loc_family'].fillna('others')
+
+# %%
+others = df[df['loc_family'] == 'others']
+others.head()
+# %%
+plt.figure(figsize=(14,10))
+sns.barplot(data=df, x='ppm', y='loc_family')
+plt.title('Location Families')
+plt.show()
+# %%
+print(df['loc_family'].value_counts())
+print(df['loc_family'].unique())
+# %%
+others.head(15)
+# %%
+others['location'].value_counts().head(30)
+# %%
+others[others['location'].str.contains('DHA Defence')]
+others[others['location'].str.contains('Bani')]
+others[others['location'].str.contains('Top City')]
+others[others['location'].str.contains('Jinnah Gardens')]
+# %% Location division in parents
+parts = df['location'].str.split(',')
+
+df['parent_loc'] = np.where(parts.str[1].str.strip() ==  'Islamabad',
+    parts.str[0].str.strip(),
+    parts.str[1].str.strip())
+
+# %%
+df.head()
+# %%
+print("Total: ",df['parent_loc'].nunique())
+df['parent_loc'].value_counts()
+# %%
+print(df["parent_loc"].nunique())
+counts = df["parent_loc"].value_counts()
+print((counts < 30).sum())
+print(counts[counts < 30].sum())
