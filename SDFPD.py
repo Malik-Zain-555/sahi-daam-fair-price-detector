@@ -1,4 +1,7 @@
 # %% 1: Getting Data
+from itertools import count
+from types import coroutine
+
 import pandas as pd
 
 df = pd.read_csv("./Data/raw/ISB_areas.csv")
@@ -197,3 +200,39 @@ print(df["parent_loc"].nunique())
 counts = df["parent_loc"].value_counts()
 print((counts < 30).sum())
 print(counts[counts < 30].sum())
+print(counts[counts == 1].sum())
+# %%
+print(df["loc_family"].str.contains("/").sum())
+print(df["parent_loc"].str.contains("/").sum())
+df[df["parent_loc"].str.contains("/")]
+# %%
+df['loc_group'] = df['parent_loc'].str.replace(r"/\d+$","",regex=True)
+
+print(df['loc_group'].str.contains("/").sum())
+print(df['loc_group'].nunique())
+# %%
+counts = df["loc_group"].value_counts()
+for t in [20,30,50]:
+    small = counts[counts<t]
+    print(t, len(small), small.sum())
+# %%
+small_groups = counts[counts<30].index
+small_groups
+# %%
+small_df = df[df["loc_group"].isin(small_groups)]
+# %%
+small_df.shape
+small_df.head()
+# %%
+small_df['ppm'].describe()
+# %%
+plt.figure(figsize=(8,6))
+sns.histplot(data=small_df, x="ppm", kde=True)
+plt.show()
+# %%
+counts = df['loc_group'].value_counts()
+df['final_loc'] = np.where(df['loc_group'].isin(counts[counts >= 30].index), df['loc_group'] ,'Others')
+# %%
+df.head()
+# %%
+df['final_loc'].value_counts()
