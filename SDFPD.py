@@ -1,7 +1,4 @@
 # %% 1: Getting Data
-from itertools import count
-from types import coroutine
-
 import pandas as pd
 
 df = pd.read_csv("./Data/raw/ISB_areas.csv")
@@ -236,3 +233,54 @@ df['final_loc'] = np.where(df['loc_group'].isin(counts[counts >= 30].index), df[
 df.head()
 # %%
 df['final_loc'].value_counts()
+# %%
+conditions = [
+    (df['final_loc'].str.contains('others', case=False, na=False)),
+    (df['final_loc'].str.contains(r'^[A-Z]-\d+$', na=False))
+]
+
+choices = [
+    "Others",
+    "Sector"
+]
+
+df['loc_type'] = np.select(conditions, choices, default="Society")
+
+# %%
+df['loc_type'].value_counts()
+# %%
+df[df['loc_type'] == 'Sector'].head(2)
+# %%
+df[df['loc_type'] == 'Society'].head(2)
+# %%
+df[df['loc_type'] == 'Others'].head(2)
+# %%
+print(df["loc_type"].value_counts())
+print('-'*30)
+print(df.groupby("loc_type")["ppm"].median())
+# %%
+plt.figure(figsize=(7,4))
+sns.barplot(data=df, x='loc_type', y='ppm')
+plt.xlabel('Location Type')
+plt.ylabel('Rater Per Marla')
+plt.show()
+# %%
+df[df['final_loc'].str.contains('B-17')].head(2)
+# %%
+df.head()
+df['final_loc'].value_counts().head()
+# %%
+df.groupby('final_loc')['loc_type'].value_counts().head()
+# %%
+df[df['final_loc'].str.contains('Bani Gala')]
+df[df['final_loc'].str.contains('Kashmir Highway')]
+df[df['final_loc'].str.contains('Kuri Road')].head(2)
+# %%
+df['loc_type'] = np.where(df['final_loc'] == 'B-17',
+    'Society',
+    df['loc_type']
+)
+# %%
+print(df['loc_type'].value_counts())
+print('-'*30)
+print(df.groupby("loc_type")["ppm"].median())
